@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Monitoring System</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --bg:#080c14;--surface:#0d1220;--card:#111827;--border:#1e2d45;
+    --border2:#243352;--green:#00f5a0;--blue:#38bdf8;--amber:#fbbf24;
+    --red:#f87171;--text:#cdd8ee;--muted:#4a6080;
+    --mono:'Share Tech Mono',monospace;--sans:'Exo 2',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh}
+  body::before{content:'';position:fixed;inset:0;
+    background-image:linear-gradient(rgba(0,245,160,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,245,160,.03) 1px,transparent 1px);
+    background-size:40px 40px;pointer-events:none;z-index:0}
+  #app{position:relative;z-index:1;padding:16px;max-width:1200px;margin:0 auto}
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;
+    background:var(--card);border:1px solid var(--border);border-radius:10px;margin-bottom:16px}
+  .logo{font-family:var(--mono);font-size:14px;color:var(--green);letter-spacing:3px;display:flex;align-items:center;gap:8px}
+  .live-badge{display:flex;align-items:center;gap:6px;background:rgba(0,245,160,.07);
+    border:1px solid rgba(0,245,160,.2);border-radius:20px;padding:4px 12px;
+    font-family:var(--mono);font-size:10px;color:var(--green);letter-spacing:2px}
+  .pulse{width:7px;height:7px;border-radius:50%;background:var(--green);animation:blink 1.4s infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+  .clock{font-family:var(--mono);font-size:13px;color:var(--muted)}
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+  .mcard{background:var(--card);border:1px solid var(--border);border-radius:10px;
+    padding:14px 16px;position:relative;overflow:hidden}
+  .mcard::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px}
+  .mcard.green::after{background:var(--green)}.mcard.blue::after{background:var(--blue)}
+  .mcard.amber::after{background:var(--amber)}.mcard.red::after{background:var(--red)}
+  .mcard.alert-flash{animation:flashcard .5s 2}
+  @keyframes flashcard{0%,100%{background:var(--card)}50%{background:rgba(248,113,113,.1)}}
+  .mlabel{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px}
+  .mval{font-family:var(--mono);font-size:30px;font-weight:700;line-height:1.1;margin-bottom:4px}
+  .mval.green{color:var(--green)}.mval.blue{color:var(--blue)}.mval.amber{color:var(--amber)}.mval.red{color:var(--red)}
+  .msub{font-size:10px;color:var(--muted);font-family:var(--mono)}
+  .sparkline{display:flex;align-items:flex-end;gap:2px;height:28px;margin-top:10px}
+  .spark-b{flex:1;border-radius:2px 2px 0 0;min-height:2px;transition:height .4s ease}
+  .charts-row{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:14px}
+  .chart-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+  .ctitle{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;
+    display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .ctitle-badge{font-size:9px;padding:2px 8px;border-radius:10px;font-family:var(--mono);letter-spacing:1px}
+  .badge-ok{background:rgba(0,245,160,.1);color:var(--green);border:1px solid rgba(0,245,160,.2)}
+  .badge-warn{background:rgba(248,113,113,.1);color:var(--red);border:1px solid rgba(248,113,113,.2)}
+  .bottom-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .feed-log{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;height:220px;overflow:hidden}
+  .feed-scroll{height:175px;overflow-y:auto;padding-right:4px}
+  .feed-scroll::-webkit-scrollbar{width:3px}
+  .feed-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+  .feed-item{display:flex;align-items:flex-start;gap:8px;padding:5px 0;
+    border-bottom:1px solid rgba(255,255,255,.04);font-family:var(--mono);font-size:11px;animation:slidein .3s ease}
+  @keyframes slidein{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+  .feed-time{color:var(--muted);min-width:58px}.feed-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:3px}
+  .feed-msg{color:var(--text);line-height:1.4}
+  .nodes-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;height:220px}
+  .nodes-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+  .node{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 6px;text-align:center;transition:border-color .3s}
+  .node.ok{border-color:rgba(0,245,160,.3)}.node.warn{border-color:rgba(248,113,113,.4)}
+  .node-id{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1px}
+  .node-temp{font-family:var(--mono);font-size:17px;font-weight:700;margin:3px 0}
+  .node-state{font-family:var(--mono);font-size:8px;letter-spacing:1px}
+  #conn-banner{position:fixed;top:16px;right:16px;background:var(--card);border:1px solid var(--red);
+    color:var(--red);font-family:var(--mono);font-size:11px;padding:8px 14px;border-radius:8px;display:none;z-index:99;letter-spacing:1px}
+</style>
+</head>
+<body>
+<div id="conn-banner">SENSOR FEED DISCONNECTED - RECONNECTING...</div>
+<div id="app">
+  <div class="topbar">
+    <div class="logo">SYSMON - SMART MONITORING</div>
+    <div class="live-badge"><span class="pulse"></span> LIVE FEED</div>
+    <div class="clock" id="clock">--:--:--</div>
+  </div>
+  <div class="metrics">
+    <div class="mcard green" id="card-temp">
+      <div class="mlabel">Temperature</div>
+      <div class="mval green" id="val-temp">--C</div>
+      <div class="msub" id="sub-temp">Waiting...</div>
+      <div class="sparkline" id="sp-temp"></div>
+    </div>
+    <div class="mcard blue" id="card-hum">
+      <div class="mlabel">Humidity</div>
+      <div class="mval blue" id="val-hum">--%</div>
+      <div class="msub" id="sub-hum">Waiting...</div>
+      <div class="sparkline" id="sp-hum"></div>
+    </div>
+    <div class="mcard amber" id="card-pres">
+      <div class="mlabel">Pressure</div>
+      <div class="mval amber" id="val-pres">-- hPa</div>
+      <div class="msub" id="sub-pres">Waiting...</div>
+      <div class="sparkline" id="sp-pres"></div>
+    </div>
+    <div class="mcard red" id="card-cpu">
+      <div class="mlabel">CPU Load</div>
+      <div class="mval red" id="val-cpu">--%</div>
+      <div class="msub" id="sub-cpu">Waiting...</div>
+      <div class="sparkline" id="sp-cpu"></div>
+    </div>
+  </div>
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="ctitle">Temperature History (last 20 readings)
+        <span class="ctitle-badge badge-ok" id="temp-badge">NORMAL</span>
+      </div>
+      <div style="position:relative;height:150px"><canvas id="tempChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="ctitle">CPU / Humidity
+        <span class="ctitle-badge badge-ok" id="cpu-badge">NORMAL</span>
+      </div>
+      <div style="position:relative;height:150px"><canvas id="multiChart"></canvas></div>
+    </div>
+  </div>
+  <div class="bottom-row">
+    <div class="feed-log">
+      <div class="ctitle">Sensor Data Feed
+        <span id="packet-count" style="color:var(--muted);font-family:var(--mono);font-size:10px">0 packets</span>
+      </div>
+      <div class="feed-scroll" id="feed-list"></div>
+    </div>
+    <div class="nodes-card">
+      <div class="ctitle">Sensor Nodes <span style="color:var(--green);font-size:9px" id="nodes-ok">6 / 6 ONLINE</span></div>
+      <div class="nodes-grid" id="nodes-grid"></div>
+    </div>
+  </div>
+</div>
+<script>
+const MAX=20;
+const tempH=Array(MAX).fill(null),cpuH=Array(MAX).fill(null),humH=Array(MAX).fill(null);
+let packetCount=0;
+const nodeIds=['N-01','N-02','N-03','N-04','N-05','N-06'];
+const sparkHistory={temp:[],hum:[],pres:[],cpu:[]};
+
+setInterval(()=>{
+  document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-IN',{hour12:false});
+},1000);
+
+const tempChart=new Chart(document.getElementById('tempChart'),{
+  type:'line',
+  data:{labels:Array(MAX).fill(''),datasets:[{data:[...tempH],borderColor:'#00f5a0',borderWidth:2,
+    fill:true,backgroundColor:'rgba(0,245,160,0.07)',tension:0.45,pointRadius:3,pointBackgroundColor:'#00f5a0',pointBorderWidth:0}]},
+  options:{responsive:true,maintainAspectRatio:false,animation:{duration:500},plugins:{legend:{display:false}},
+    scales:{x:{display:false},y:{min:0,max:110,ticks:{color:'#4a6080',font:{size:9,family:"'Share Tech Mono'"}},
+    grid:{color:'rgba(255,255,255,0.04)'},border:{display:false}}}}
+});
+
+const multiChart=new Chart(document.getElementById('multiChart'),{
+  type:'line',
+  data:{labels:Array(MAX).fill(''),datasets:[
+    {label:'CPU %',data:[...cpuH],borderColor:'#f87171',borderWidth:2,fill:false,tension:0.4,pointRadius:0},
+    {label:'Humidity %',data:[...humH],borderColor:'#38bdf8',borderWidth:1.5,fill:false,tension:0.4,pointRadius:0,borderDash:[4,3]}
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,animation:{duration:500},
+    plugins:{legend:{display:true,position:'bottom',labels:{color:'#4a6080',font:{size:9,family:"'Share Tech Mono'"},boxWidth:12,padding:10}}},
+    scales:{x:{display:false},y:{min:0,max:100,ticks:{color:'#4a6080',font:{size:9,family:"'Share Tech Mono'"}},
+    grid:{color:'rgba(255,255,255,0.04)'},border:{display:false}}}}
+});
+
+function updateSpark(id,val,max,color){
+  const h=sparkHistory[id];
+  h.push(val);if(h.length>14)h.shift();
+  const el=document.getElementById('sp-'+id);
+  el.innerHTML=h.map(v=>{
+    const pct=Math.max(5,Math.round((v/max)*100));
+    return '<div class="spark-b" style="height:'+pct+'%;background:'+color+';opacity:0.65"></div>';
+  }).join('');
+}
+
+function renderNodes(baseTemp){
+  const offsets=[0,-4,6,-9,3,-6];
+  let warns=0;
+  const html=nodeIds.map((id,i)=>{
+    const t=Math.max(15,Math.min(105,baseTemp+offsets[i]+Math.round((Math.random()-0.5)*8)));
+    const ok=t<=70;
+    if(!ok)warns++;
+    const col=ok?'#00f5a0':'#f87171';
+    return '<div class="node '+(ok?'ok':'warn')+'">'
+      +'<div class="node-id">'+id+'</div>'
+      +'<div class="node-temp" style="color:'+col+'">'+t+'</div>'
+      +'<div class="node-state" style="color:'+col+'">'+(ok?'OK':'HIGH')+'</div>'
+      +'</div>';
+  }).join('');
+  document.getElementById('nodes-grid').innerHTML=html;
+  const nok=document.getElementById('nodes-ok');
+  nok.textContent=(nodeIds.length-warns)+' / '+nodeIds.length+' ONLINE';
+  nok.style.color=warns>0?'#f87171':'#00f5a0';
+}
+
+function addFeedItem(d){
+  const list=document.getElementById('feed-list');
+  const isAlert=d.status==='HIGH';
+  const color=isAlert?'#f87171':'#00f5a0';
+  const msg=isAlert
+    ?'ALERT - Temp '+d.temperature+'C exceeds threshold (>70C)'
+    :'OK - Temp '+d.temperature+'C | Hum '+d.humidity+'% | Pres '+d.pressure+' hPa | CPU '+d.cpu+'%';
+  const item=document.createElement('div');
+  item.className='feed-item';
+  item.innerHTML='<span class="feed-time">'+d.timestamp+'</span>'
+    +'<span class="feed-dot" style="background:'+color+'"></span>'
+    +'<span class="feed-msg" style="color:'+(isAlert?'#f87171':'#cdd8ee')+'">'+msg+'</span>';
+  list.insertBefore(item,list.firstChild);
+  while(list.children.length>50)list.removeChild(list.lastChild);
+}
+
+function updateDashboard(d){
+  packetCount++;
+  document.getElementById('packet-count').textContent=packetCount+' packets';
+  const isHigh=d.status==='HIGH';
+  document.getElementById('val-temp').textContent=d.temperature+'C';
+  document.getElementById('val-hum').textContent=d.humidity+'%';
+  document.getElementById('val-pres').textContent=d.pressure+' hPa';
+  document.getElementById('val-cpu').textContent=d.cpu+'%';
+  document.getElementById('sub-temp').textContent=isHigh?'Above threshold':'Within normal range';
+  document.getElementById('sub-hum').textContent=d.humidity>75?'High humidity':'Normal';
+  document.getElementById('sub-pres').textContent='Barometric - Node-03';
+  document.getElementById('sub-cpu').textContent=d.cpu>80?'High load':'System core normal';
+  if(isHigh){
+    const c=document.getElementById('card-temp');
+    c.classList.remove('alert-flash');void c.offsetWidth;c.classList.add('alert-flash');
+  }
+  const tb=document.getElementById('temp-badge');
+  tb.textContent=isHigh?'HIGH TEMP':'NORMAL';
+  tb.className='ctitle-badge '+(isHigh?'badge-warn':'badge-ok');
+  const cb=document.getElementById('cpu-badge');
+  cb.textContent=d.cpu>80?'HIGH CPU':'NORMAL';
+  cb.className='ctitle-badge '+(d.cpu>80?'badge-warn':'badge-ok');
+  updateSpark('temp',d.temperature,100,'#00f5a0');
+  updateSpark('hum',d.humidity,100,'#38bdf8');
+  updateSpark('pres',d.pressure-990,40,'#fbbf24');
+  updateSpark('cpu',d.cpu,100,'#f87171');
+  tempH.push(d.temperature);tempH.shift();
+  cpuH.push(d.cpu);cpuH.shift();
+  humH.push(d.humidity);humH.shift();
+  tempChart.data.datasets[0].data=[...tempH];
+  multiChart.data.datasets[0].data=[...cpuH];
+  multiChart.data.datasets[1].data=[...humH];
+  tempChart.update('none');multiChart.update('none');
+  renderNodes(d.temperature);
+  addFeedItem(d);
+}
+
+function connectSSE(){
+  const banner=document.getElementById('conn-banner');
+  const es=new EventSource('/api/stream');
+  es.onmessage=function(e){
+    banner.style.display='none';
+    try{updateDashboard(JSON.parse(e.data));}
+    catch(err){console.error('Parse error:',err);}
+  };
+  es.onerror=function(){
+    banner.style.display='block';
+    es.close();
+    setTimeout(connectSSE,3000);
+  };
+}
+
+renderNodes(40);
+connectSSE();
+</script>
+</body>
+</html>

@@ -1,7 +1,5 @@
-import random
-import time
+import random, time, json
 from kafka import KafkaProducer
-import json
 
 producer = KafkaProducer(
     bootstrap_servers='localhost:9092',
@@ -9,15 +7,8 @@ producer = KafkaProducer(
 )
 
 while True:
-
     temp = random.randint(20, 100)
-
-    data = {
-        "temperature": temp
-    }
-
+    data = {"temperature": temp}
     print("Sending:", data)
-
     producer.send("sensor-data", data)
-
     time.sleep(2)
